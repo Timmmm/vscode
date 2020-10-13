@@ -313,16 +313,62 @@ export class HistoryService extends Disposable implements IHistoryService {
 
 	private currentTextEditorState: TextEditorState | null = null;
 
+	// Get the resources for the editors in the active editor group.
+	private activeGroupResources(): Set<URI | undefined> {
+		return new Set(
+			this.editorGroupService.activeGroup.editors
+				.map(editor => editor.resource)
+		);
+	}
+
 	forward(): void {
 		if (this.navigationStack.length > this.navigationStackIndex + 1) {
-			this.setIndex(this.navigationStackIndex + 1);
+			// Go forward through the stack and find the first history item that is
+			// in the same editor group as this one. If there isn't one, then just
+			// go forward one.
+			//
+			// This is O(N) but MAX_NAVIGATION_STACK_ITEMS is fairly small
+			// so it should be fine.
+
+			let index = this.navigationStackIndex + 1;
+
+			const activeGroupResources = this.activeGroupResources();
+
+			for (let i = this.navigationStackIndex + 1; i < this.navigationStack.length; ++i) {
+				const resource = this.navigationStack[i].input.resource;
+				if (resource !== undefined && activeGroupResources.has(resource)) {
+					index = i;
+					break;
+				}
+			}
+
+			this.setIndex(index);
 			this.navigate();
 		}
 	}
 
 	back(): void {
 		if (this.navigationStackIndex > 0) {
-			this.setIndex(this.navigationStackIndex - 1);
+			// Go back through the stack and find the first history item that is
+			// in the same editor group as this one. If there isn't one, then just
+			// go back one.
+			//
+			// This is O(N) but MAX_NAVIGATION_STACK_ITEMS is fairly small
+			// so it should be fine.
+
+			let index = this.navigationStackIndex - 1;
+
+			const activeGroupResources = this.activeGroupResources();
+
+			for (let i = this.navigationStackIndex - 1; i >= 0; --i) {
+				const resource = this.navigationStack[i].input.resource;
+				if (resource !== undefined && activeGroupResources.has(resource)) {
+					index = i;
+					break;
+				}
+			}
+
+			this.setIndex(index);
 			this.navigate();
 		}
 	}
